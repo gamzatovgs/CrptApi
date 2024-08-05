@@ -55,8 +55,8 @@ public class CrptApi {
         // к ресурсу сервера и возвращает его в счетчик семафора, согласно заданному временному промежутку timeUnit
         // и ограничению на количество запросов в этом временном промежутке requestLimit.
         scheduler.scheduleAtFixedRate(() -> {
-            LOGGER.info("Освобождение ранее выданного разрешения на доступ к ресурсу сервера и возвращение его в счетчик семафора");
-            semaphore.release();
+            LOGGER.info("Освобождение " + (requestLimit - semaphore.availablePermits()) + " ранее выданных разрешений на доступ к ресурсу сервера и возвращение их в счетчик семафора");
+            semaphore.release(requestLimit - semaphore.availablePermits());
         }, 0, 1, timeUnit);
     }
 
@@ -71,7 +71,7 @@ public class CrptApi {
     public HttpResponse<String> createDocument(Document document, String signature) throws InterruptedException, IOException {
         // Запрашиваем разрешение на доступ к ресурсу у семафора.
         // Если счетчик > 0, разрешение предоставляется, а счетчик уменьшается на 1.
-        LOGGER.info("Запрос разрешения на доступ к ресурсу сервера через API у семафора");
+        LOGGER.info("Запрос разрешения на доступ к ресурсу сервера через API у семафора, доступно разрешений - " + semaphore.availablePermits());
         semaphore.acquire();
 
         // Преобразуем объект Document в JSON.
@@ -99,6 +99,9 @@ public class CrptApi {
     }
 
     public static void main(String[] args) {
+        // Время запуска приложения
+        long startTime = System.currentTimeMillis();
+
         CrptApi crptApi = new CrptApi(TimeUnit.SECONDS, 10);
 
         // Читаем JSON из файла и преобразуем в строку.
@@ -137,6 +140,11 @@ public class CrptApi {
 
         // Остановка планировщика задач.
         crptApi.shutdownScheduler();
+
+        // Время остановки приложения
+        long stopTime = System.currentTimeMillis();
+
+        LOGGER.info("Выполнение " + NUMBER_OF_REQUESTS + " запросов заняло " + (stopTime - startTime) + " миллисекунд");
     }
 
     /**
